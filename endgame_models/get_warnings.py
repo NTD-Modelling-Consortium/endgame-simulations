@@ -56,17 +56,13 @@ def _pydantic_similarities(
 
     difference_dict = {}
     for k, v in raw_dict.items():
-        # TODO: Why does below line break stuff
-        # if (other_v := validated_dict.get(k)) and v != other_v:
-        if k in validated_dict:
-            other_v = validated_dict[k]
-            if v != other_v:
-                if isinstance(v, dict):
-                    assert isinstance(other_v, dict)
-                    difference_dict[k] = _pydantic_similarities(v, other_v)
-                elif isinstance(v, (list, tuple)):
-                    assert isinstance(other_v, type(v))
-                    difference_dict[k] = compare_iterable(v, other_v)
+        if (other_v := validated_dict.get(k)) is not None:
+            if v != other_v and isinstance(v, dict):
+                assert isinstance(other_v, dict)
+                difference_dict[k] = _pydantic_similarities(v, other_v)
+            elif v != other_v and isinstance(v, (list, tuple)):
+                assert isinstance(other_v, type(v))
+                difference_dict[k] = compare_iterable(v, other_v)
         elif m := get_close_matches(k, validated_dict.keys()):
             difference_dict[k] = DifferenceData(m)
 

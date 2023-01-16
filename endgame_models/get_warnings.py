@@ -21,7 +21,9 @@ ListMatchType = list["_MatchType"]
 DictMatchType = dict[str, "_MatchType"]
 
 
-def compare_dicts(data_dict: DictType, model_dict: DictType) -> DictMatchType:
+def _pydantic_similarities(
+    raw_dict: DictType, validated_dict: DictType
+) -> DictMatchType:
     def compare_iterable(
         list1: ListType | TupleType, list2: ListType | TupleType
     ) -> ListMatchType:
@@ -29,7 +31,7 @@ def compare_dicts(data_dict: DictType, model_dict: DictType) -> DictMatchType:
         for item, other_item in zip(list1, list2):
             if isinstance(item, dict):
                 assert isinstance(other_item, dict)
-                out = compare_dicts(item, other_item)
+                out = _pydantic_similarities(item, other_item)
             elif isinstance(item, (list, tuple)):
                 assert isinstance(other_item, type(item))
                 out = compare_iterable(item, other_item)
@@ -40,39 +42,39 @@ def compare_dicts(data_dict: DictType, model_dict: DictType) -> DictMatchType:
         return output_list
 
     difference_dict = {}
-    for k, v in data_dict.items():
+    for k, v in raw_dict.items():
         # TODO: Why does below line break stuff
         # if (other_v := model_dict.get(k)) and v != other_v:
-        if k in model_dict:
-            other_v = model_dict[k]
+        if k in validated_dict:
+            other_v = validated_dict[k]
             if v != other_v:
                 if isinstance(v, dict):
                     assert isinstance(other_v, dict)
-                    difference_dict[k] = compare_dicts(v, other_v)
+                    difference_dict[k] = _pydantic_similarities(v, other_v)
                 elif isinstance(v, (list, tuple)):
                     assert isinstance(other_v, type(v))
                     difference_dict[k] = compare_iterable(v, other_v)
-        elif m := get_close_matches(k, model_dict.keys()):
+        elif m := get_close_matches(k, validated_dict.keys()):
             difference_dict[k] = DifferenceData(m)
 
     return difference_dict
 
 
-def outer_flatten(obj: DictMatchType, prefix: str = "") -> list[str]:
-    def flatten(
+def _flatten(obj: DictMatchType, prefix: str = "") -> list[str]:
+    def inner_flatten(
         obj: DictMatchType | ListMatchType, prefix: str = ""
     ) -> dict[str, DifferenceData]:
         iterator = obj.items() if isinstance(obj, dict) else enumerate(obj)
         ret = {}
         for k, v in iterator:
             if isinstance(v, dict) or isinstance(v, list):
-                update = flatten(v, prefix=f"{prefix} -> {k}")
+                update = inner_flatten(v, prefix=f"{prefix} -> {k}")
             else:
                 update = {f"Close match detected for: \n{prefix} -> {k}": v}
             ret.update(update)
         return ret
 
-    flat = flatten(obj, prefix=prefix)
+    flat = inner_flatten(obj, prefix=prefix)
 
     return [
         f'{k} - Did you mean {" or ".join(v.matches)}?'
@@ -81,5 +83,7 @@ def outer_flatten(obj: DictMatchType, prefix: str = "") -> list[str]:
     ]
 
 
-def get_warnings(data_dict: DictType, model_dict: DictType, prefix: str) -> list[str]:
-    return outer_flatten(compare_dicts(data_dict, model_dict), prefix=prefix)
+def get_warnings(
+    raw_dict: DictType, validated_dict: DictType, prefix: str
+) -> list[str]:
+    return _flatten(_pydantic_similarities(raw_dict, validated_dict), prefix=prefix)

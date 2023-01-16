@@ -5,7 +5,7 @@ from endgame_models.models import apply_incremental_param_changes
 
 test = {
     "parameters": {
-        "initial": {"w_rate": 0.1, "delta_time": 3},
+        "initial": {"w_rate": 0.1, "w_bate": 0.1, "delta_time": 3},
         "changes": [
             {"year": 2020, "month": 1, "params": {"delta_time": 1}},
             {"year": 2022, "month": 1, "params": {"delta_time": 2, "wrate": 1}},
@@ -52,6 +52,7 @@ test = {
 
 class TestParams(BaseInitialParams):
     w_rate: int
+    w_bate: int
     delta_time: int
 
 

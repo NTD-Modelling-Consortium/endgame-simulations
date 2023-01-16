@@ -24,6 +24,19 @@ DictMatchType = dict[str, "_MatchType"]
 def _pydantic_similarities(
     raw_dict: DictType, validated_dict: DictType
 ) -> DictMatchType:
+    """
+    Compare the processed result of a pydantic model, with the original input data.
+    Returns information about the fields that are similar to the model, but excluded
+    for having a a different key.
+
+    Args:
+        raw_dict (DictType): The original input data dict to the pydantic model.
+        validated_dict (DictType): The processed data dict.
+
+    Returns:
+        DictMatchType: Tiered dict displaying the location of similar keys.
+    """
+
     def compare_iterable(
         list1: ListType | TupleType, list2: ListType | TupleType
     ) -> ListMatchType:
@@ -44,7 +57,7 @@ def _pydantic_similarities(
     difference_dict = {}
     for k, v in raw_dict.items():
         # TODO: Why does below line break stuff
-        # if (other_v := model_dict.get(k)) and v != other_v:
+        # if (other_v := validated_dict.get(k)) and v != other_v:
         if k in validated_dict:
             other_v = validated_dict[k]
             if v != other_v:
@@ -61,6 +74,17 @@ def _pydantic_similarities(
 
 
 def _flatten(obj: DictMatchType, prefix: str = "") -> list[str]:
+    """
+    Flatten a series of nested matches from _pydantic_similarities
+
+    Args:
+        obj (DictMatchType): Output of _pydantic_similarities
+        prefix (str, optional): Prefix of address. Defaults to "".
+
+    Returns:
+        list[str]: List of warnings a user can to raise.
+    """
+
     def inner_flatten(
         obj: DictMatchType | ListMatchType, prefix: str = ""
     ) -> dict[str, DifferenceData]:
@@ -86,4 +110,15 @@ def _flatten(obj: DictMatchType, prefix: str = "") -> list[str]:
 def get_warnings(
     raw_dict: DictType, validated_dict: DictType, prefix: str
 ) -> list[str]:
+    """
+    Compare the processed result of a pydantic model, with the original input data.
+    Returns a list of warnings that a user can raise, based on fields that are similar.
+
+    Args:
+        raw_dict (DictType): The original input data dict to the pydantic model.
+        validated_dict (DictType): The processed data dict.
+        prefix (str): Prefix of address. Typically the class name.
+
+    Returns: List of warnings that a user can raise, based on fields that are similar.
+    """
     return _flatten(_pydantic_similarities(raw_dict, validated_dict), prefix=prefix)

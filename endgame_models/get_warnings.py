@@ -3,7 +3,6 @@ __all__ = ["get_warnings"]
 from dataclasses import dataclass
 from difflib import get_close_matches
 
-
 Flat = str | float | int | bool
 
 JSONType = Flat | list["JSONType"] | dict[str, "JSONType"] | tuple["JSONType", ...]
@@ -11,19 +10,21 @@ DictType = dict[str, JSONType]
 ListType = list[JSONType]
 TupleType = tuple[JSONType, ...]
 
+
 @dataclass
 class DifferenceData:
     matches: list[str]
+
 
 _MatchType = DifferenceData | list["_MatchType"] | dict[str, "_MatchType"]
 ListMatchType = list["_MatchType"]
 DictMatchType = dict[str, "_MatchType"]
 
-FlattenedDict = dict[str, Flat | DifferenceData]
-
 
 def compare_dicts(data_dict: DictType, model_dict: DictType) -> DictMatchType:
-    def compare_iterable(list1: ListType | TupleType, list2: ListType | TupleType) -> ListMatchType:
+    def compare_iterable(
+        list1: ListType | TupleType, list2: ListType | TupleType
+    ) -> ListMatchType:
         output_list = []
         for item, other_item in zip(list1, list2):
             if isinstance(item, dict):
@@ -40,6 +41,8 @@ def compare_dicts(data_dict: DictType, model_dict: DictType) -> DictMatchType:
 
     difference_dict = {}
     for k, v in data_dict.items():
+        # TODO: Why does below line break stuff
+        # if (other_v := model_dict.get(k)) and v != other_v:
         if k in model_dict:
             other_v = model_dict[k]
             if v != other_v:
@@ -49,18 +52,16 @@ def compare_dicts(data_dict: DictType, model_dict: DictType) -> DictMatchType:
                 elif isinstance(v, (list, tuple)):
                     assert isinstance(other_v, type(v))
                     difference_dict[k] = compare_iterable(v, other_v)
+        elif m := get_close_matches(k, model_dict.keys()):
+            difference_dict[k] = DifferenceData(m)
 
-        else:
-            m = get_close_matches(k, model_dict.keys())
-            if len(m) != 0:
-                difference_dict[k] = DifferenceData(m)
     return difference_dict
 
 
 def outer_flatten(obj: DictMatchType, prefix: str = "") -> list[str]:
     def flatten(
         obj: DictMatchType | ListMatchType, prefix: str = ""
-    ) -> FlattenedDict:
+    ) -> dict[str, DifferenceData]:
         iterator = obj.items() if isinstance(obj, dict) else enumerate(obj)
         ret = {}
         for k, v in iterator:

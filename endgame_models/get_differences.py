@@ -73,7 +73,9 @@ def _flatten_output_read_only(
             if isinstance(v, ReadOnlyDiff)
         ]
 
-ParamType = TypeVar("ParamType", bound = BaseInitialParams)
+
+ParamType = TypeVar("ParamType", bound=BaseInitialParams)
+
 
 def get_read_only_differences(
     old_params: ParamType, new_params: ParamType
@@ -92,5 +94,6 @@ def get_read_only_differences(
     model = type(old_params)
     assert type(new_params) == model
     return _flatten_output_read_only(
-        _output_read_only_diff(old_params.dict(), new_params.dict(), model), model.__name__
+        _output_read_only_diff(old_params.dict(), new_params.dict(), model),
+        model.__name__,
     )

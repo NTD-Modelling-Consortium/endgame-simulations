@@ -1,7 +1,11 @@
 from enum import Enum
 
-from endgame_models import BaseInitialParams, BaseProgramParams, make_endgame_model
-from endgame_models.models import apply_incremental_param_changes
+from endgame_models import (
+    BaseInitialParams,
+    BaseProgramParams,
+    apply_incremental_param_changes,
+    make_endgame_model,
+)
 
 test = {
     "parameters": {

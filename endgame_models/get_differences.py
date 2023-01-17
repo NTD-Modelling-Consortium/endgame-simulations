@@ -61,14 +61,14 @@ def _flatten_output_read_only(
                 if isinstance(v, dict):
                     update = inner_flatten(v, prefix=f"{prefix} -> {k}")
                 else:
-                    update = {f"Read only value was changed: \n{prefix} -> {k}": v}
+                    update = {f"{prefix} -> {k}": v}
                 ret.update(update)
             return ret
 
         flat = inner_flatten(output_read_only, prefix=prefix)
 
         return [
-            f"{k}   Old value: {v.original} New value: {v.new}"
+            f"Read only value was changed: \n{k}     Old value: {v.original}     New value: {v.new}"
             for k, v in flat.items()
             if isinstance(v, ReadOnlyDiff)
         ]

@@ -1,3 +1,12 @@
+__all__ = [
+    "EndgameModel",
+    "create_update_model",
+    "apply_incremental_param_changes",
+    "read_only",
+    "BaseInitialParams",
+    "BaseProgramParams",
+]
+
 import warnings
 from typing import Generic, Iterable, Optional, Type, TypeVar
 
@@ -8,15 +17,6 @@ from pydantic.main import ModelMetaclass
 from typing_extensions import dataclass_transform
 
 from .get_warnings import get_warnings
-
-__all__ = [
-    "EndgameModel",
-    "create_update_model",
-    "apply_incremental_param_changes",
-    "read_only",
-    "BaseInitialParams",
-    "BaseProgramParams",
-]
 
 
 def read_only(default=...):

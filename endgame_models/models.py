@@ -13,6 +13,7 @@ __all__ = [
     "EndgameModel",
     "create_update_model",
     "apply_incremental_param_changes",
+    "read_only",
     "BaseInitialParams",
     "BaseProgramParams",
 ]
@@ -25,11 +26,11 @@ def read_only(default=...):
 @dataclass_transform(
     kw_only_default=True, field_specifiers=(read_only, Field, FieldInfo)
 )
-class _FixedMeta(ModelMetaclass):
+class _MetaParams(ModelMetaclass):
     pass
 
 
-class BaseParams(BaseModel, metaclass=_FixedMeta):
+class BaseParams(BaseModel, metaclass=_MetaParams):
     class Config:
         validate_assignment = True
 
@@ -59,10 +60,14 @@ class _BaseUpdateParams(BaseParams):
 def create_update_model(
     initial_model: Type[BaseInitialParams],
 ) -> Type[_BaseUpdateParams]:
-    new_fields = {
-        field.name: (Optional[field.type_], None)
-        for field in initial_model.__fields__.values()
-    }
+    new_fields = {}
+    for field in initial_model.__fields__.values():
+        if field.field_info.allow_mutation:
+            if issubclass(field.outer_type_, BaseInitialParams):
+                new_model = create_update_model(field.outer_type_)
+            else:
+                new_model = field.outer_type_
+            new_fields[field.name] = (Optional[new_model], None)
     return create_model(
         f"Update{initial_model.__name__}", __base__=_BaseUpdateParams, **new_fields
     )

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TypeVar
 
 from typing_extensions import Type
 
@@ -22,7 +22,7 @@ class ReadOnlyDiff:
 OutputReadOnly = dict[str, "ReadOnlyDiff | OutputReadOnly"]
 
 
-def output_read_only_diff(
+def _output_read_only_diff(
     initial_dict: DictType, update_dict: DictType, model: Type[BaseInitialParams]
 ) -> Optional[OutputReadOnly]:
     changed_read_only: OutputReadOnly = {}
@@ -34,7 +34,7 @@ def output_read_only_diff(
             if not field.field_info.allow_mutation:
                 if issubclass(field.outer_type_, BaseInitialParams):
                     assert isinstance(old_v, dict) and isinstance(new_v, dict)
-                    out = output_read_only_diff(old_v, new_v, field.outer_type_)
+                    out = _output_read_only_diff(old_v, new_v, field.outer_type_)
                     if out is not None:
                         changed_read_only[k] = out
                 elif old_v != new_v:
@@ -46,7 +46,7 @@ def output_read_only_diff(
         return changed_read_only
 
 
-def flatten_output_read_only(
+def _flatten_output_read_only(
     output_read_only: Optional[OutputReadOnly], prefix: str = ""
 ) -> list[str]:
     if output_read_only is None:
@@ -73,10 +73,24 @@ def flatten_output_read_only(
             if isinstance(v, ReadOnlyDiff)
         ]
 
+ParamType = TypeVar("ParamType", bound = BaseInitialParams)
 
-def get_differences(
-    old_dict: DictType, new_dict: DictType, model: Type[BaseInitialParams]
+def get_read_only_differences(
+    old_params: ParamType, new_params: ParamType
 ) -> list[str]:
-    return flatten_output_read_only(
-        output_read_only_diff(old_dict, new_dict, model), model.__name__
+    """
+    Gets the read only properties that have been changed between two sets of parameters.
+
+
+    Args:
+        old_params (ParamType): The old set of parameters
+        new_params (ParamType): The new set of parameters
+
+    Returns:
+        list[str]: The read only differences between the two.
+    """
+    model = type(old_params)
+    assert type(new_params) == model
+    return _flatten_output_read_only(
+        _output_read_only_diff(old_params.dict(), new_params.dict(), model), model.__name__
     )

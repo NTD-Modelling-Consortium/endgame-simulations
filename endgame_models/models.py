@@ -1,8 +1,11 @@
 import warnings
 from typing import Generic, Iterable, Optional, Type, TypeVar
 
-from pydantic import BaseModel, PrivateAttr, create_model
+from pydantic import BaseModel, Field, PrivateAttr, create_model
+from pydantic.fields import FieldInfo
 from pydantic.generics import GenericModel
+from pydantic.main import ModelMetaclass
+from typing_extensions import dataclass_transform
 
 from .get_warnings import get_warnings
 
@@ -13,6 +16,22 @@ __all__ = [
     "BaseInitialParams",
     "BaseProgramParams",
 ]
+
+
+def read_only(default=...):
+    return Field(default=default, allow_mutation=False)
+
+
+@dataclass_transform(
+    kw_only_default=True, field_specifiers=(read_only, Field, FieldInfo)
+)
+class _FixedMeta(ModelMetaclass):
+    pass
+
+
+class BaseParams(BaseModel, metaclass=_FixedMeta):
+    class Config:
+        validate_assignment = True
 
 
 class BaseEndgame(BaseModel):
@@ -29,11 +48,11 @@ class BaseEndgame(BaseModel):
             warnings.warn(w, stacklevel=9999)
 
 
-class BaseInitialParams(BaseModel):
+class BaseInitialParams(BaseParams):
     pass
 
 
-class _BaseUpdateParams(BaseModel):
+class _BaseUpdateParams(BaseParams):
     pass
 
 
@@ -64,7 +83,7 @@ class Parameters(GenericModel, Generic[InitialParams, UpdateParams]):
     changes: list[ParameterChanges[UpdateParams]]
 
 
-class BaseProgramParams(BaseModel):
+class BaseProgramParams(BaseParams):
     treatment_interval: float
 
 

@@ -28,9 +28,9 @@ def _output_read_only_diff(
     changed_read_only: OutputReadOnly = {}
     for k, new_v in update_dict.items():
         if (old_v := initial_dict.get(k)) is not None:
-            assert k in model.__fields__
             # Update and initial both have parameter
-            field = model.__fields__[k]
+            field = model.__fields__.get(k)
+            assert field is not None
             if not field.field_info.allow_mutation:
                 if issubclass(field.outer_type_, BaseInitialParams):
                     assert isinstance(old_v, dict) and isinstance(new_v, dict)

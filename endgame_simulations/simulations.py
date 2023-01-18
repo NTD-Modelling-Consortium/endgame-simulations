@@ -6,21 +6,21 @@ from endgame_simulations.models import BaseInitialParams, BaseProgramParams, End
 from hdf5_dataclass import FileType
 import h5py
 import tqdm
-ParamsModel = TypeVar("ParamsModel", bound = BaseInitialParams)
+StateParams = TypeVar("StateParams", bound = BaseInitialParams)
 
-class BaseState(Generic[ParamsModel], ABC):
+class BaseState(Generic[StateParams], ABC):
     current_time: float
     @abstractclassmethod
     def from_params(
         cls,
-        params: ParamsModel,
+        params: StateParams,
         current_time: float = 0.0,
     ):
         ...
     @abstractclassmethod
     def from_hdf5(
         cls,
-        params: ParamsModel,
+        params: StateParams,
         current_time: float = 0.0,
     ):
         ...
@@ -34,11 +34,11 @@ class BaseState(Generic[ParamsModel], ABC):
         ...
 
     @abstractmethod
-    def get_params(self) -> ParamsModel:
+    def get_params(self) -> StateParams:
         ...
 
     @abstractmethod
-    def reset_params(self, params: ParamsModel):
+    def reset_params(self, params: StateParams):
         """Reset the parameters
 
         Args:
@@ -55,9 +55,11 @@ class AdvanceState(Protocol, Generic[State]):
     def __call__(self, state: State, debug: bool = False) -> None:
         ...
 
+ParamsModel = TypeVar("ParamsModel", bound = BaseInitialParams)
+
 class GenericSimulation(Generic[ParamsModel, State], ABC):
     state_class: ClassVar[type[BaseState]]
-    advance_state: AdvanceState
+    advance_state: ClassVar[AdvanceState]
     state: State
     def __init_subclass__(cls, *, state_class: type[State], advance_state: AdvanceState) -> None:
         cls.state_class = state_class
@@ -226,7 +228,7 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
             sampling_years = sorted(sampling_years)
 
         sampling_years_idx = 0
-        self._delta_time
+
         with tqdm.tqdm(
             total=end_time - self.state.current_time + self._delta_time,
             disable=not self.verbose,
@@ -252,7 +254,7 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
                         sampling_years_idx += 1
 
                 progress_bar.update(self._delta_time)
-                self.advance_state(self.state)
+                type(self).advance_state(self.state)
 
     def run(self, *, end_time: float) -> None:
         """Run simulation from current state till `end_time`
@@ -270,12 +272,14 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         ) as progress_bar:
             while self.state.current_time <= end_time:
                 progress_bar.update(self._delta_time)
-                self.advance_state(self.state)
+                type(self).advance_state(self.state)
 
 ProgramModel = TypeVar("ProgramModel", bound = BaseProgramParams)
 UpdateParamsModel = TypeVar("UpdateParamsModel", bound = _BaseUpdateParams)
+CombinedParams = TypeVar("CombinedParams", bound = BaseInitialParams)
 
-class GenericEndgame(Generic[ParamsModel, UpdateParamsModel, ProgramModel, State]):
+class GenericEndgame(Generic[ParamsModel, UpdateParamsModel, ProgramModel, State, CombinedParams]):
+    _param_set: list[CombinedParams]
     def __init__(
         self, 
         *, 

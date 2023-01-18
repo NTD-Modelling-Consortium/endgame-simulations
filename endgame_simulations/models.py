@@ -120,11 +120,13 @@ def apply_incremental_param_changes(
     return type(initial).parse_obj(current_dict)
 
 
+InitialModel = TypeVar("InitialModel", bound = BaseInitialParams)
+ProgramModel = TypeVar("ProgramModel", bound = BaseProgramParams)
 def make_endgame_model(
     name: str,
-    initial_model: Type[BaseInitialParams],
-    treatment_model: Type[BaseProgramParams],
-) -> Type[EndgameModel]:
+    initial_model: Type[InitialModel],
+    treatment_model: Type[ProgramModel],
+) -> Type[EndgameModel[InitialModel, _BaseUpdateParams, ProgramModel]]:
     NewModel = EndgameModel[
         initial_model, create_update_model(initial_model), treatment_model
     ]

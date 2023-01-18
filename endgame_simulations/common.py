@@ -4,9 +4,7 @@ from typing import Generic, Protocol, TypeVar
 import h5py
 from hdf5_dataclass import FileType
 
-from endgame_simulations.models import (
-    BaseInitialParams
-)
+from endgame_simulations.models import BaseInitialParams
 
 StateParams = TypeVar("StateParams", bound=BaseInitialParams)
 

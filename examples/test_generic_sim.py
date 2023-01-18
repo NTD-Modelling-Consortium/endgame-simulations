@@ -29,6 +29,7 @@ def advance_state(state: State, debug: bool = False):
     print(state)
     state.state_int = state.state_int + 1
 
+
 class NewSim(
     GenericSimulation[Params, State], state_class=State, advance_state=advance_state
 ):

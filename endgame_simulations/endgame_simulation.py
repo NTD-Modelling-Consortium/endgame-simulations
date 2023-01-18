@@ -1,30 +1,28 @@
 from abc import abstractproperty
 from typing import ClassVar, Generic, Iterator, Protocol, TypeVar, cast, overload
+
 from hdf5_dataclass import FileType
 
-from endgame_simulations.models import (
-    BaseInitialParams,
-    EndgameModel,
-)
+from endgame_simulations.models import BaseInitialParams, EndgameModel
 from endgame_simulations.simulations import GenericSimulation
 
 from .common import AdvanceState, State
 
 CombinedParams = TypeVar("CombinedParams", bound=BaseInitialParams)
-EndgameModelGeneric = TypeVar("EndgameModelGeneric", bound = EndgameModel, contravariant=True)
+EndgameModelGeneric = TypeVar(
+    "EndgameModelGeneric", bound=EndgameModel, contravariant=True
+)
 
-class ConvertEndgame(
-    Protocol, Generic[EndgameModelGeneric, CombinedParams]
-):
-    def __call__(
-        self, endgame: EndgameModelGeneric
-    ) -> list[CombinedParams]:
+
+class ConvertEndgame(Protocol, Generic[EndgameModelGeneric, CombinedParams]):
+    def __call__(self, endgame: EndgameModelGeneric) -> list[CombinedParams]:
         ...
 
-Simulation = TypeVar("Simulation", bound  = GenericSimulation)
-class GenericEndgame(
-    Generic[EndgameModelGeneric, Simulation, State, CombinedParams]
-):
+
+Simulation = TypeVar("Simulation", bound=GenericSimulation)
+
+
+class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedParams]):
     simulation_class: ClassVar[type[GenericSimulation]]
     convert_endgame: ClassVar[ConvertEndgame]
     advance_state: ClassVar[AdvanceState]
@@ -49,8 +47,7 @@ class GenericEndgame(
         self,
         *,
         start_time: float | None = None,
-        endgame: EndgameModelGeneric
-        | None = None,
+        endgame: EndgameModelGeneric | None = None,
         input: FileType | None = None,
         verbose: bool = False,
         debug: bool = False,
@@ -58,23 +55,21 @@ class GenericEndgame(
         assert (endgame is not None) != (
             input is not None
         ), "You must provide either `endgame` or `input`"
-        
+
         if endgame:
             self._param_set = type(self).convert_endgame(endgame)
             assert start_time
             simulation = type(self).simulation_class(
-                start_time= start_time, 
-                params = self._param_set[0], 
-                verbose=verbose, 
-                debug = debug
+                start_time=start_time,
+                params=self._param_set[0],
+                verbose=verbose,
+                debug=debug,
             )
 
         else:
             assert input
             # input
-            simulation = type(self).simulation_class.restore(
-                input=input
-            )
+            simulation = type(self).simulation_class.restore(input=input)
         self.simulation = cast(Simulation, simulation)
         self.verbose = verbose
         self.debug = debug
@@ -166,23 +161,29 @@ class GenericEndgame(
                 time, params = self._param_set[self.current_param]
                 if time < end_time:
                     self.simulation.reset_current_params(params)
-                    yield next(self.simulation.iter_run(
-                        end_time=time, 
-                        sampling_interval = sampling_interval,
-                        sampling_years = sampling_years
-                    ))
+                    yield next(
+                        self.simulation.iter_run(
+                            end_time=time,
+                            sampling_interval=sampling_interval,
+                            sampling_years=sampling_years,
+                        )
+                    )
                 else:
-                    yield next(self.simulation.iter_run(
-                        end_time=end_time, 
-                        sampling_interval = sampling_interval,
-                        sampling_years = sampling_years
-                    ))
+                    yield next(
+                        self.simulation.iter_run(
+                            end_time=end_time,
+                            sampling_interval=sampling_interval,
+                            sampling_years=sampling_years,
+                        )
+                    )
             else:
-                yield next(self.simulation.iter_run(
-                    end_time=end_time, 
-                    sampling_interval = sampling_interval,
-                    sampling_years = sampling_years
-                ))
+                yield next(
+                    self.simulation.iter_run(
+                        end_time=end_time,
+                        sampling_interval=sampling_interval,
+                        sampling_years=sampling_years,
+                    )
+                )
 
     def run(self, *, end_time: float) -> None:
         """Run simulation from current state till `end_time`
@@ -196,7 +197,7 @@ class GenericEndgame(
                 time, params = self._param_set[self.current_param]
                 if time < end_time:
                     self.simulation.reset_current_params(params)
-                    self.simulation.run(end_time = time)
+                    self.simulation.run(end_time=time)
                 else:
                     self.simulation.run(end_time=end_time)
             else:

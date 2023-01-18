@@ -1,16 +1,11 @@
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from typing import Generic, Protocol, TypeVar
 
 import h5py
-import tqdm
 from hdf5_dataclass import FileType
 
 from endgame_simulations.models import (
-    BaseInitialParams,
-    BaseProgramParams,
-    EndgameModel,
-    InitialParams,
-    _BaseUpdateParams,
+    BaseInitialParams
 )
 
 StateParams = TypeVar("StateParams", bound=BaseInitialParams)
@@ -19,7 +14,8 @@ StateParams = TypeVar("StateParams", bound=BaseInitialParams)
 class BaseState(Generic[StateParams], ABC):
     current_time: float
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def from_params(
         cls,
         params: StateParams,
@@ -27,7 +23,8 @@ class BaseState(Generic[StateParams], ABC):
     ):
         ...
 
-    @abstractclassmethod
+    @classmethod
+    @abstractmethod
     def from_hdf5(
         cls,
         params: StateParams,

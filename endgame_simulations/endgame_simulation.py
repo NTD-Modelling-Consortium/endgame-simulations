@@ -20,23 +20,23 @@ InitialParamsModel = TypeVar(
 UpdateParamsModel = TypeVar(
     "UpdateParamsModel", bound=_BaseUpdateParams, contravariant=True
 )
-CombinedParams = TypeVar("CombinedParams", bound=BaseInitialParams, covariant=True)
+CombinedParams = TypeVar("CombinedParams", bound=BaseInitialParams)
+EndgameModelGeneric = TypeVar("EndgameModelGeneric", bound = EndgameModel, contravariant=True)
 
-
-class CombineParams(
-    Protocol, Generic[InitialParamsModel, UpdateParamsModel, CombinedParams]
+class ConvertEndgame(
+    Protocol, Generic[EndgameModelGeneric, CombinedParams]
 ):
     def __call__(
-        self, params: InitialParamsModel, update_params: UpdateParamsModel
-    ) -> CombinedParams:
+        self, endgame: EndgameModelGeneric
+    ) -> list[CombinedParams]:
         ...
 
 
 class GenericEndgame(
-    Generic[InitialParamsModel, UpdateParamsModel, ProgramModel, State, CombinedParams]
+    Generic[EndgameModelGeneric, State, CombinedParams]
 ):
     state_class: ClassVar[type[BaseState]]
-    combine_params: ClassVar[CombineParams]
+    convert_endgame: ClassVar[ConvertEndgame]
     advance_state: ClassVar[AdvanceState]
     state: State
     verbose: bool
@@ -48,17 +48,17 @@ class GenericEndgame(
         *,
         state_class: type[State],
         advance_state: AdvanceState,
-        combine_params: CombineParams,
+        convert_endgame: ConvertEndgame,
     ) -> None:
         cls.state_class = state_class
         cls.advance_state = advance_state
-        cls.combine_params = combine_params
+        cls.convert_endgame = convert_endgame
 
     def __init__(
         self,
         *,
         start_time: float | None = None,
-        endgame: EndgameModel[InitialParamsModel, UpdateParamsModel, ProgramModel]
+        endgame: EndgameModelGeneric
         | None = None,
         input: FileType | None = None,
         verbose: bool = False,
@@ -76,6 +76,7 @@ class GenericEndgame(
         self.state = cast(State, state)
         self.verbose = verbose
         self.debug = debug
+        self._param_set = type(self).convert_endgame(endgame)
 
     @abstractproperty
     def _delta_time(self) -> float:

@@ -1,25 +1,15 @@
 from abc import abstractproperty
 from typing import ClassVar, Generic, Iterator, Protocol, TypeVar, cast, overload
-
-import tqdm
 from hdf5_dataclass import FileType
 
 from endgame_simulations.models import (
     BaseInitialParams,
-    BaseProgramParams,
     EndgameModel,
-    _BaseUpdateParams,
 )
+from endgame_simulations.simulations import GenericSimulation
 
-from .common import AdvanceState, BaseState, State
+from .common import AdvanceState, State
 
-ProgramModel = TypeVar("ProgramModel", bound=BaseProgramParams)
-InitialParamsModel = TypeVar(
-    "InitialParamsModel", bound=BaseInitialParams, contravariant=True
-)
-UpdateParamsModel = TypeVar(
-    "UpdateParamsModel", bound=_BaseUpdateParams, contravariant=True
-)
 CombinedParams = TypeVar("CombinedParams", bound=BaseInitialParams)
 EndgameModelGeneric = TypeVar("EndgameModelGeneric", bound = EndgameModel, contravariant=True)
 
@@ -31,26 +21,27 @@ class ConvertEndgame(
     ) -> list[CombinedParams]:
         ...
 
-
+Simulation = TypeVar("Simulation", bound  = GenericSimulation)
 class GenericEndgame(
-    Generic[EndgameModelGeneric, State, CombinedParams]
+    Generic[EndgameModelGeneric, Simulation, State, CombinedParams]
 ):
-    state_class: ClassVar[type[BaseState]]
+    simulation_class: ClassVar[type[GenericSimulation]]
     convert_endgame: ClassVar[ConvertEndgame]
     advance_state: ClassVar[AdvanceState]
-    state: State
+    simulation: Simulation
     verbose: bool
     debug: bool
-    _param_set: list[CombinedParams]
+    _param_set: list[tuple[float, CombinedParams]]
+    current_param: int
 
     def __init_subclass__(
         cls,
         *,
-        state_class: type[State],
+        simulation_class: type[Simulation],
         advance_state: AdvanceState,
         convert_endgame: ConvertEndgame,
     ) -> None:
-        cls.state_class = state_class
+        cls.simulation_class = simulation_class
         cls.advance_state = advance_state
         cls.convert_endgame = convert_endgame
 
@@ -67,16 +58,27 @@ class GenericEndgame(
         assert (endgame is not None) != (
             input is not None
         ), "You must provide either `endgame` or `input`"
+        
         if endgame:
-            state = self.state_class.from_params(endgame, start_time or 0.0)
+            self._param_set = type(self).convert_endgame(endgame)
+            assert start_time
+            simulation = type(self).simulation_class(
+                start_time= start_time, 
+                params = self._param_set[0], 
+                verbose=verbose, 
+                debug = debug
+            )
 
         else:
+            assert input
             # input
-            state = self.state_class.from_hdf5(input)
-        self.state = cast(State, state)
+            simulation = type(self).simulation_class.restore(
+                input=input
+            )
+        self.simulation = cast(Simulation, simulation)
         self.verbose = verbose
         self.debug = debug
-        self._param_set = type(self).convert_endgame(endgame)
+        self.current_param = 1
 
     @abstractproperty
     def _delta_time(self) -> float:
@@ -91,7 +93,7 @@ class GenericEndgame(
         Args:
             output (FileType): output file/stream
         """
-        self.state.to_hdf5(output)
+        self.simulation.save(output)
 
     @classmethod
     def restore(cls, input: FileType):
@@ -158,46 +160,48 @@ class GenericEndgame(
         sampling_interval: float | None = None,
         sampling_years: list[float] | None = None,
     ) -> Iterator[State]:
-        if end_time < self.state.current_time:
-            raise ValueError("End time after start")
-
-        if sampling_interval and sampling_years:
-            raise ValueError(
-                "You must provide sampling_interval, sampling_years or neither"
-            )
-
-        if sampling_years:
-            sampling_years = sorted(sampling_years)
-
-        sampling_years_idx = 0
-
-        with tqdm.tqdm(
-            total=end_time - self.state.current_time + self._delta_time,
-            disable=not self.verbose,
-        ) as progress_bar:
-            while self.state.current_time <= end_time:
-                is_on_sampling_interval = (
-                    sampling_interval is not None
-                    and self.state.current_time % sampling_interval < self._delta_time
-                )
-
-                is_on_sampling_year = (
-                    sampling_years
-                    and sampling_years_idx < len(sampling_years)
-                    and abs(
-                        self.state.current_time - sampling_years[sampling_years_idx]
-                    )
-                    < self._delta_time
-                )
-
-                if is_on_sampling_interval or is_on_sampling_year:
-                    yield self.state
-                    if is_on_sampling_year:
-                        sampling_years_idx += 1
-
-                progress_bar.update(self._delta_time)
-                self.state.current_time += self._delta_time
-                type(self).advance_state(self.state, self.debug)
+        while self.simulation.state.current_time < end_time:
+            if self.current_param < len(self._param_set):
+                # Has param sets left
+                time, params = self._param_set[self.current_param]
+                if time < end_time:
+                    self.simulation.reset_current_params(params)
+                    if sampling_interval:
+                        yield next(self.simulation.iter_run(
+                            end_time=time, 
+                            sampling_interval = sampling_interval
+                        ))
+                    else:
+                        assert sampling_years
+                        yield next(self.simulation.iter_run(
+                            end_time=time, 
+                            sampling_years = sampling_years
+                        ))
+                else:
+                    if sampling_interval:
+                        yield next(self.simulation.iter_run(
+                            end_time=end_time, 
+                            sampling_interval = sampling_interval
+                        ))
+                    else:
+                        assert sampling_years
+                        yield next(self.simulation.iter_run(
+                            end_time=end_time, 
+                            sampling_years = sampling_years
+                        ))
+                    
+            else:
+                if sampling_interval:
+                    yield next(self.simulation.iter_run(
+                        end_time=end_time, 
+                        sampling_interval = sampling_interval
+                    ))
+                else:
+                    assert sampling_years
+                    yield next(self.simulation.iter_run(
+                        end_time=end_time, 
+                        sampling_years = sampling_years
+                    ))
 
     def run(self, *, end_time: float) -> None:
         """Run simulation from current state till `end_time`
@@ -205,15 +209,14 @@ class GenericEndgame(
         Args:
             end_time (float): end time of the simulation.
         """
-        if end_time < self.state.current_time:
-            raise ValueError("End time after start")
-
-        # total progress bar must be a bit over so that the loop doesn't exceed total
-        with tqdm.tqdm(
-            total=end_time - self.state.current_time + self._delta_time,
-            disable=not self.verbose,
-        ) as progress_bar:
-            while self.state.current_time <= end_time:
-                progress_bar.update(self._delta_time)
-                self.state.current_time += self._delta_time
-                type(self).advance_state(self.state)
+        while self.simulation.state.current_time < end_time:
+            if self.current_param < len(self._param_set):
+                # Has param sets left
+                time, params = self._param_set[self.current_param]
+                if time < end_time:
+                    self.simulation.reset_current_params(params)
+                    self.simulation.run(end_time = time)
+                else:
+                    self.simulation.run(end_time=end_time)
+            else:
+                self.simulation.run(end_time=end_time)

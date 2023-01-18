@@ -211,6 +211,7 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
                         sampling_years_idx += 1
 
                 progress_bar.update(self._delta_time)
+                self.state.current_time += self._delta_time
                 type(self).advance_state(self.state, self.debug)
 
     def run(self, *, end_time: float) -> None:
@@ -229,4 +230,5 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         ) as progress_bar:
             while self.state.current_time <= end_time:
                 progress_bar.update(self._delta_time)
+                self.state.current_time += self._delta_time
                 type(self).advance_state(self.state)

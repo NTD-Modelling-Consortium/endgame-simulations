@@ -57,6 +57,7 @@ class BaseState(Generic[StateParams], ABC):
         """
         ...
 
+    @abstractmethod
     def __eq__(self, other: object) -> bool:
         ...
 

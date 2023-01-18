@@ -166,42 +166,23 @@ class GenericEndgame(
                 time, params = self._param_set[self.current_param]
                 if time < end_time:
                     self.simulation.reset_current_params(params)
-                    if sampling_interval:
-                        yield next(self.simulation.iter_run(
-                            end_time=time, 
-                            sampling_interval = sampling_interval
-                        ))
-                    else:
-                        assert sampling_years
-                        yield next(self.simulation.iter_run(
-                            end_time=time, 
-                            sampling_years = sampling_years
-                        ))
-                else:
-                    if sampling_interval:
-                        yield next(self.simulation.iter_run(
-                            end_time=end_time, 
-                            sampling_interval = sampling_interval
-                        ))
-                    else:
-                        assert sampling_years
-                        yield next(self.simulation.iter_run(
-                            end_time=end_time, 
-                            sampling_years = sampling_years
-                        ))
-                    
-            else:
-                if sampling_interval:
                     yield next(self.simulation.iter_run(
-                        end_time=end_time, 
-                        sampling_interval = sampling_interval
-                    ))
-                else:
-                    assert sampling_years
-                    yield next(self.simulation.iter_run(
-                        end_time=end_time, 
+                        end_time=time, 
+                        sampling_interval = sampling_interval,
                         sampling_years = sampling_years
                     ))
+                else:
+                    yield next(self.simulation.iter_run(
+                        end_time=end_time, 
+                        sampling_interval = sampling_interval,
+                        sampling_years = sampling_years
+                    ))
+            else:
+                yield next(self.simulation.iter_run(
+                    end_time=end_time, 
+                    sampling_interval = sampling_interval,
+                    sampling_years = sampling_years
+                ))
 
     def run(self, *, end_time: float) -> None:
         """Run simulation from current state till `end_time`

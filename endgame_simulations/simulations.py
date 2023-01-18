@@ -166,6 +166,16 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         """
         ...
 
+    @overload
+    def iter_run(
+        self,
+        *,
+        end_time: float,
+        sampling_interval: float | None = None,
+        sampling_years: list[float] | None = None,
+    ) -> Iterator[State]:
+        ...
+
     def iter_run(
         self,
         *,

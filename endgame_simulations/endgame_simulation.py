@@ -1,79 +1,74 @@
-from abc import ABC, abstractproperty
-from typing import ClassVar, Generic, Iterator, TypeVar, cast, overload
+from abc import abstractproperty
+from typing import ClassVar, Generic, Iterator, Protocol, TypeVar, cast, overload
 
 import tqdm
 from hdf5_dataclass import FileType
 
-from endgame_simulations.models import BaseInitialParams
+from endgame_simulations.models import (
+    BaseInitialParams,
+    BaseProgramParams,
+    EndgameModel,
+    _BaseUpdateParams,
+)
 
 from .common import AdvanceState, BaseState, State
 
-ParamsModel = TypeVar("ParamsModel", bound=BaseInitialParams)
+ProgramModel = TypeVar("ProgramModel", bound=BaseProgramParams)
+InitialParamsModel = TypeVar(
+    "InitialParamsModel", bound=BaseInitialParams, contravariant=True
+)
+UpdateParamsModel = TypeVar(
+    "UpdateParamsModel", bound=_BaseUpdateParams, contravariant=True
+)
+CombinedParams = TypeVar("CombinedParams", bound=BaseInitialParams, covariant=True)
 
 
-class GenericSimulation(Generic[ParamsModel, State], ABC):
+class CombineParams(
+    Protocol, Generic[InitialParamsModel, UpdateParamsModel, CombinedParams]
+):
+    def __call__(
+        self, params: InitialParamsModel, update_params: UpdateParamsModel
+    ) -> CombinedParams:
+        ...
+
+
+class GenericEndgame(
+    Generic[InitialParamsModel, UpdateParamsModel, ProgramModel, State, CombinedParams]
+):
     state_class: ClassVar[type[BaseState]]
+    combine_params: ClassVar[CombineParams]
     advance_state: ClassVar[AdvanceState]
     state: State
     verbose: bool
     debug: bool
+    _param_set: list[CombinedParams]
 
     def __init_subclass__(
-        cls, *, state_class: type[State], advance_state: AdvanceState
+        cls,
+        *,
+        state_class: type[State],
+        advance_state: AdvanceState,
+        combine_params: CombineParams,
     ) -> None:
         cls.state_class = state_class
         cls.advance_state = advance_state
-
-    @overload
-    def __init__(
-        self,
-        *,
-        start_time: float,
-        params: ParamsModel,
-        verbose: bool = False,
-        debug: bool = False,
-    ) -> None:
-        """Create a new simulation, given the parameters.
-
-        Args:
-            start_time (float): Start time of the simulation
-            params (ParamsModel): A set of fixed parameters for controlling the model.
-            verbose (bool, optional): Verbose?. Defaults to False.
-            debug (bool, optional): Debug?. Defaults to False.
-        """
-        ...
-
-    @overload
-    def __init__(
-        self,
-        *,
-        input: FileType,
-        verbose: bool = False,
-        debug: bool = False,
-    ) -> None:
-        """Restore the simulation from a previously saved file.
-
-        Args:
-            input (FileType): input file/stream
-            verbose (bool, optional): Verbose?. Defaults to False.
-            debug (bool, optional): Debug?. Defaults to False.
-        """
-        ...
+        cls.combine_params = combine_params
 
     def __init__(
         self,
         *,
         start_time: float | None = None,
-        params: ParamsModel | None = None,
+        endgame: EndgameModel[InitialParamsModel, UpdateParamsModel, ProgramModel]
+        | None = None,
         input: FileType | None = None,
         verbose: bool = False,
         debug: bool = False,
     ) -> None:
-        assert (params is not None) != (
+        assert (endgame is not None) != (
             input is not None
-        ), "You must provide either `params` or `input`"
-        if params:
-            state = self.state_class.from_params(params, start_time or 0.0)
+        ), "You must provide either `endgame` or `input`"
+        if endgame:
+            state = self.state_class.from_params(endgame, start_time or 0.0)
 
         else:
             # input
@@ -85,17 +80,6 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
     @abstractproperty
     def _delta_time(self) -> float:
         ...
-
-    def get_current_params(self) -> ParamsModel:
-        return self.state.get_params()
-
-    def reset_current_params(self, params: ParamsModel):
-        """Reset the parameters
-
-        Args:
-            params (Params): New set of parameters
-        """
-        self.state.reset_params(params)
 
     def save(self, output: FileType) -> None:
         """Save the simulation to a file/stream.

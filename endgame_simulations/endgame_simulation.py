@@ -14,7 +14,9 @@ EndgameModelGeneric = TypeVar(
 
 
 class ConvertEndgame(Protocol, Generic[EndgameModelGeneric, CombinedParams]):
-    def __call__(self, endgame: EndgameModelGeneric) -> list[CombinedParams]:
+    def __call__(
+        self, endgame: EndgameModelGeneric
+    ) -> list[tuple[float, CombinedParams]]:
         ...
 
 
@@ -52,10 +54,10 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
 
         if endgame:
             self._param_set = type(self).convert_endgame(endgame)
-            assert start_time
+            assert start_time is not None and self._param_set
             simulation = type(self).simulation_class(
                 start_time=start_time,
-                params=self._param_set[0],
+                params=self._param_set[0][1],
                 verbose=verbose,
                 debug=debug,
             )
@@ -144,34 +146,21 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         sampling_years: list[float] | None = None,
     ) -> Iterator[State]:
         while self.simulation.state.current_time < end_time:
+            end_time_override = end_time
             if self.current_param < len(self._param_set):
                 # Has param sets left
                 time, params = self._param_set[self.current_param]
                 if time < end_time:
                     self.simulation.reset_current_params(params)
-                    yield next(
-                        self.simulation.iter_run(
-                            end_time=time,
-                            sampling_interval=sampling_interval,
-                            sampling_years=sampling_years,
-                        )
-                    )
-                else:
-                    yield next(
-                        self.simulation.iter_run(
-                            end_time=end_time,
-                            sampling_interval=sampling_interval,
-                            sampling_years=sampling_years,
-                        )
-                    )
-            else:
-                yield next(
-                    self.simulation.iter_run(
-                        end_time=end_time,
-                        sampling_interval=sampling_interval,
-                        sampling_years=sampling_years,
-                    )
+                    end_time_override = time
+
+            yield next(
+                self.simulation.iter_run(
+                    end_time=end_time_override,
+                    sampling_interval=sampling_interval,
+                    sampling_years=sampling_years,
                 )
+            )
 
     def run(self, *, end_time: float) -> None:
         """Run simulation from current state till `end_time`
@@ -180,13 +169,12 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
             end_time (float): end time of the simulation.
         """
         while self.simulation.state.current_time < end_time:
+            end_time_override = end_time
             if self.current_param < len(self._param_set):
                 # Has param sets left
                 time, params = self._param_set[self.current_param]
                 if time < end_time:
+                    end_time_override = time
                     self.simulation.reset_current_params(params)
-                    self.simulation.run(end_time=time)
-                else:
-                    self.simulation.run(end_time=end_time)
-            else:
-                self.simulation.run(end_time=end_time)
+
+            self.simulation.run(end_time=end_time_override)

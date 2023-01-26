@@ -90,8 +90,8 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
             )
 
             next_params = h5.attrs["next_params_index"]
-            assert isinstance(next_params, int)
-            self.next_params_index = next_params
+            assert not isinstance(next_params, h5py.Empty)
+            self.next_params_index = int(next_params)
 
         self.simulation = cast(Simulation, simulation)
         self.next_params_index = 1

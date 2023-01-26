@@ -85,3 +85,5 @@ class NewEndgame(
 sim = NewEndgame(start_time=1, endgame=endgame)
 
 sim.run(end_time=4)
+sim.save("test.hdf5")
+sim.restore("test.hdf5")

@@ -72,7 +72,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
             h5 = (
                 input
                 if isinstance(input, (h5py.File, h5py.Group))
-                else h5py.File(input, "w")
+                else h5py.File(input, "r")
             )
 
             sim = h5["simulation"]

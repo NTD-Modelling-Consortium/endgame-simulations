@@ -75,6 +75,7 @@ class NewEndgame(
     GenericEndgame[TestEndgame, TestSimulation, State, FullParams],
     convert_endgame=convert_endgame,
     simulation_class=TestSimulation,
+    combined_params_model=FullParams
 ):
     @property
     def _delta_time(self) -> float:

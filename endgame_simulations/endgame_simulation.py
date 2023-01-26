@@ -1,5 +1,7 @@
+import json
 from typing import ClassVar, Generic, Iterator, Protocol, TypeVar, cast, overload
 
+import h5py
 from hdf5_dataclass import FileType
 
 from endgame_simulations.models import BaseInitialParams, EndgameModel
@@ -25,6 +27,7 @@ Simulation = TypeVar("Simulation", bound=GenericSimulation)
 
 class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedParams]):
     simulation_class: ClassVar[type[GenericSimulation]]
+    combined_params_model: ClassVar[type[BaseInitialParams]]
     convert_endgame: ClassVar[ConvertEndgame]
     simulation: Simulation
     _param_set: list[tuple[float, CombinedParams]]
@@ -35,16 +38,18 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         *,
         simulation_class: type[Simulation],
         convert_endgame: ConvertEndgame,
+        combined_params_model: type[CombinedParams],
     ) -> None:
         cls.simulation_class = simulation_class
         cls.convert_endgame = convert_endgame
+        cls.combined_params_model = combined_params_model
 
     def __init__(
         self,
         *,
         start_time: float | None = None,
         endgame: EndgameModelGeneric | None = None,
-        input: FileType | None = None,
+        input: FileType | h5py.File | h5py.Group | None = None,
         verbose: bool = False,
         debug: bool = False,
     ) -> None:
@@ -64,12 +69,34 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
 
         else:
             assert input
-            # input
-            simulation = type(self).simulation_class.restore(input=input)
+            h5 = (
+                input
+                if isinstance(input, (h5py.File, h5py.Group))
+                else h5py.File(input, "w")
+            )
+
+            sim = h5["simulation"]
+            assert isinstance(sim, h5py.Group)
+            simulation = type(self).simulation_class.restore(input=sim)
+
+            param_set_str = h5.attrs["param_set"]
+            assert isinstance(param_set_str, str)
+            param_set: list[tuple[float, dict]] = json.loads(param_set_str)
+            converted_param_set = [
+                (i[0], self.combined_params_model.parse_obj(i[1])) for i in param_set
+            ]
+            self._param_set = cast(
+                list[tuple[float, CombinedParams]], converted_param_set
+            )
+
+            next_params = h5.attrs["next_params_index"]
+            assert isinstance(next_params, int)
+            self.next_params_index = next_params
+
         self.simulation = cast(Simulation, simulation)
         self.next_params_index = 1
 
-    def save(self, output: FileType) -> None:
+    def save(self, output: FileType | h5py.File | h5py.Group) -> None:
         """Save the simulation to a file/stream.
 
         The output file will be in a HDF5 format. The simulation can then be
@@ -78,10 +105,20 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         Args:
             output (FileType): output file/stream
         """
-        self.simulation.save(output)
+        h5 = (
+            output
+            if isinstance(output, (h5py.File, h5py.Group))
+            else h5py.File(output, "w")
+        )
+        grp = h5.create_group("simulation")
+        self.simulation.save(grp)
+        h5.attrs["param_set"] = json.dumps(
+            [(i[0], i[1].dict()) for i in self._param_set]
+        )
+        h5.attrs["next_params_index"] = self.next_params_index
 
     @classmethod
-    def restore(cls, input: FileType):
+    def restore(cls, input: FileType | h5py.File | h5py.Group):
         """Restore the simulation from a file/stream
 
         Args:

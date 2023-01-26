@@ -1,6 +1,7 @@
 from abc import ABC, abstractproperty
 from typing import ClassVar, Generic, Iterator, TypeVar, cast, overload
 
+import h5py
 import tqdm
 from hdf5_dataclass import FileType
 
@@ -47,14 +48,14 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
     def __init__(
         self,
         *,
-        input: FileType,
+        input: FileType | h5py.File | h5py.Group,
         verbose: bool = False,
         debug: bool = False,
     ) -> None:
         """Restore the simulation from a previously saved file.
 
         Args:
-            input (FileType): input file/stream
+            input (FileType | h5py.File | h5py.Group): input file/stream/group
             verbose (bool, optional): Verbose?. Defaults to False.
             debug (bool, optional): Debug?. Defaults to False.
         """
@@ -65,7 +66,7 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         *,
         start_time: float | None = None,
         params: ParamsModel | None = None,
-        input: FileType | None = None,
+        input: FileType | h5py.File | h5py.Group | None = None,
         verbose: bool = False,
         debug: bool = False,
     ) -> None:
@@ -97,23 +98,23 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         """
         self.state.reset_params(params)
 
-    def save(self, output: FileType) -> None:
+    def save(self, output: FileType | h5py.File | h5py.Group) -> None:
         """Save the simulation to a file/stream.
 
         The output file will be in a HDF5 format. The simulation can then be
         restored with `Simulation.restore` class method.
 
         Args:
-            output (FileType): output file/stream
+            output (FileType | h5py.File | h5py.Group): output file/stream/group
         """
         self.state.to_hdf5(output)
 
     @classmethod
-    def restore(cls, input: FileType):
+    def restore(cls, input: FileType | h5py.File | h5py.Group):
         """Restore the simulation from a file/stream
 
         Args:
-            input (FileType): HDF5 stream/file
+            input (FileType | h5py.File | h5py.Group): HDF5 file/stream/group
 
         Returns:
             Simulation: restored simulation

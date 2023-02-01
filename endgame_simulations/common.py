@@ -25,8 +25,7 @@ class BaseState(Generic[StateParams], ABC):
     @abstractmethod
     def from_hdf5(
         cls,
-        params: StateParams,
-        current_time: float = 0.0,
+        input: FileType | h5py.File | h5py.Group,
     ):
         ...
 

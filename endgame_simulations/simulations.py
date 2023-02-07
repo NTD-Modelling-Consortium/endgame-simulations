@@ -185,7 +185,9 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         sampling_years: list[float] | None = None,
     ) -> Iterator[State]:
         if end_time < self.state.current_time:
-            raise ValueError(f"End time {end_time} before start {self.state.current_time}")
+            raise ValueError(
+                f"End time {end_time} before start {self.state.current_time}"
+            )
 
         if sampling_interval and sampling_years:
             raise ValueError(

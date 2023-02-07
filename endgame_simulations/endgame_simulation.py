@@ -70,17 +70,21 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
 
         else:
             assert input
-            h5 = (
-                input
-                if isinstance(input, (h5py.File, h5py.Group))
-                else h5py.File(input, "r")
-            )
+            if isinstance(input, (h5py.File, h5py.Group)):
+                h5 = input
+                sim = h5["simulation"]
+                param_set_str = h5.attrs["param_set"]
+                next_params = h5.attrs["next_params_index"]
+                assert isinstance(sim, h5py.Group)
+                simulation = type(self).simulation_class.restore(input=sim)
+            else:
+                with h5py.File(input, "r") as h5:
+                    sim = h5["simulation"]
+                    param_set_str = h5.attrs["param_set"]
+                    next_params = h5.attrs["next_params_index"]
+                    assert isinstance(sim, h5py.Group)
+                    simulation = type(self).simulation_class.restore(input=sim)
 
-            sim = h5["simulation"]
-            assert isinstance(sim, h5py.Group)
-            simulation = type(self).simulation_class.restore(input=sim)
-
-            param_set_str = h5.attrs["param_set"]
             assert isinstance(param_set_str, str)
             param_set: list[tuple[float, dict]] = json.loads(param_set_str)
             converted_param_set = [
@@ -90,7 +94,6 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
                 list[tuple[float, CombinedParams]], converted_param_set
             )
 
-            next_params = h5.attrs["next_params_index"]
             assert not isinstance(next_params, h5py.Empty)
             self.next_params_index = int(next_params)
 
@@ -105,17 +108,22 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         Args:
             output (FileType): output file/stream
         """
-        h5 = (
-            output
-            if isinstance(output, (h5py.File, h5py.Group))
-            else h5py.File(output, "w")
-        )
-        grp = h5.create_group("simulation")
-        self.simulation.save(grp)
-        h5.attrs["param_set"] = json.dumps(
-            [(i[0], i[1].dict()) for i in self._param_set]
-        )
-        h5.attrs["next_params_index"] = self.next_params_index
+        if isinstance(output, (h5py.File, h5py.Group)):
+            h5 = output
+            grp = h5.create_group("simulation")
+            self.simulation.save(grp)
+            h5.attrs["param_set"] = json.dumps(
+                [(i[0], i[1].dict()) for i in self._param_set]
+            )
+            h5.attrs["next_params_index"] = self.next_params_index
+        else:
+            with h5py.File(output, "w") as h5:
+                grp = h5.create_group("simulation")
+                self.simulation.save(grp)
+                h5.attrs["param_set"] = json.dumps(
+                    [(i[0], i[1].dict()) for i in self._param_set]
+                )
+                h5.attrs["next_params_index"] = self.next_params_index
 
     @classmethod
     def restore(cls, input: FileType | h5py.File | h5py.Group):

@@ -53,7 +53,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         verbose: bool = False,
         debug: bool = False,
     ) -> None:
-        """Create a new simulation, given the parameters.
+        """Create a new endgame simulation, given the parameters.
 
         Args:
             start_time (float): Start time of the simulation
@@ -71,7 +71,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         verbose: bool = False,
         debug: bool = False,
     ) -> None:
-        """Restore the simulation from a previously saved file.
+        """Restore the endgame simulation from a previously saved file.
 
         Args:
             input (FileType | h5py.File | h5py.Group): input file/stream/group

@@ -44,6 +44,42 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         cls.convert_endgame = convert_endgame
         cls.combined_params_model = combined_params_model
 
+    @overload
+    def __init__(
+        self,
+        *,
+        start_time: float,
+        endgame: EndgameModelGeneric,
+        verbose: bool = False,
+        debug: bool = False,
+    ) -> None:
+        """Create a new simulation, given the parameters.
+
+        Args:
+            start_time (float): Start time of the simulation
+            params (ParamsModel): A set of fixed parameters for controlling the model.
+            verbose (bool, optional): Verbose?. Defaults to False.
+            debug (bool, optional): Debug?. Defaults to False.
+        """
+        ...
+
+    @overload
+    def __init__(
+        self,
+        *,
+        input: FileType | h5py.File | h5py.Group,
+        verbose: bool = False,
+        debug: bool = False,
+    ) -> None:
+        """Restore the simulation from a previously saved file.
+
+        Args:
+            input (FileType | h5py.File | h5py.Group): input file/stream/group
+            verbose (bool, optional): Verbose?. Defaults to False.
+            debug (bool, optional): Debug?. Defaults to False.
+        """
+        ...
+
     def __init__(
         self,
         *,
@@ -98,6 +134,11 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
             self.next_params_index = int(next_params)
 
         self.simulation = cast(Simulation, simulation)
+
+    def reset_endgame(self, endgame: EndgameModelGeneric):
+        self._param_set = type(self).convert_endgame(endgame)
+        self.simulation.reset_current_params(self._param_set[0][1])
+        self.next_params_index = 1
 
     def save(self, output: FileType | h5py.File | h5py.Group) -> None:
         """Save the simulation to a file/stream.

@@ -57,7 +57,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
 
         Args:
             start_time (float): Start time of the simulation
-            params (ParamsModel): A set of fixed parameters for controlling the model.
+            endgame (EndgameModelGeneric): The endgame model description.
             verbose (bool, optional): Verbose?. Defaults to False.
             debug (bool, optional): Debug?. Defaults to False.
         """

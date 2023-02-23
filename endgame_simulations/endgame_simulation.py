@@ -95,7 +95,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
 
         if endgame:
             self._param_set = type(self).convert_endgame(endgame)
-            assert start_time is not None and self._param_set
+            assert start_time is not None and (len(self._param_set) > 0)
             simulation = type(self).simulation_class(
                 start_time=start_time,
                 params=self._param_set[0][1],
@@ -137,6 +137,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
 
     def reset_endgame(self, endgame: EndgameModelGeneric):
         self._param_set = type(self).convert_endgame(endgame)
+        assert len(self._param_set) > 0
         self.simulation.reset_current_params(self._param_set[0][1])
         self.next_params_index = 1
 

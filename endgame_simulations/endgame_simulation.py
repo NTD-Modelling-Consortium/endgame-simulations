@@ -255,7 +255,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
             else:
                 next_stop = end_time
                 next_params = None
-            
+
             yield from self.simulation.iter_run(
                 end_time=next_stop,
                 sampling_interval=sampling_interval,
@@ -265,7 +265,6 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
             if next_params is not None:
                 self.simulation.reset_current_params(next_params)
                 self.next_params_index += 1
-
 
     def run(self, *, end_time: float) -> None:
         """Run simulation from current state till `end_time`
@@ -281,7 +280,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
             else:
                 next_stop = end_time
                 next_params = None
-            
+
             self.simulation.run(end_time=next_stop)
 
             if next_params is not None:

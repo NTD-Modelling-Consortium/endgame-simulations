@@ -96,13 +96,18 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         if endgame:
             self._param_set = type(self).convert_endgame(endgame)
             assert start_time is not None and (len(self._param_set) > 0)
+            time_params = [t for t, _ in self._param_set]
+            self.next_params_index = next(
+                i for i, value in enumerate(time_params) if value > start_time
+            )
+            if self.next_params_index < 1:
+                raise ValueError(f"Invalid next param index: {self.next_params_index}")
             simulation = type(self).simulation_class(
                 start_time=start_time,
-                params=self._param_set[0][1],
+                params=self._param_set[self.next_params_index - 1][1],
                 verbose=verbose,
                 debug=debug,
             )
-            self.next_params_index = 1
 
         else:
             assert input
@@ -138,8 +143,17 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
     def reset_endgame(self, endgame: EndgameModelGeneric):
         self._param_set = type(self).convert_endgame(endgame)
         assert len(self._param_set) > 0
-        self.simulation.reset_current_params(self._param_set[0][1])
-        self.next_params_index = 1
+        time_params = [t for t, _ in self._param_set]
+        self.next_params_index = next(
+            i
+            for i, value in enumerate(time_params)
+            if value > self.simulation.state.current_time
+        )
+        if self.next_params_index < 1:
+            raise ValueError(f"Invalid next param index: {self.next_params_index}")
+        self.simulation.reset_current_params(
+            self._param_set[self.next_params_index - 1][1]
+        )
 
     def save(self, output: FileType | h5py.File | h5py.Group) -> None:
         """Save the simulation to a file/stream.

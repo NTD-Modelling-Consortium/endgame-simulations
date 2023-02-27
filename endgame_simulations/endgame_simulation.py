@@ -248,20 +248,24 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         sampling_years: list[float] | None = None,
     ) -> Iterator[State]:
         while self.simulation.state.current_time < end_time:
-            checkpoint_time = end_time
+            # Invariant: current params are applied at this point
             if self.next_params_index < len(self._param_set):
-                # Has param sets left
-                time, params = self._param_set[self.next_params_index]
-                self.next_params_index += 1
-                if time < end_time:
-                    checkpoint_time = time
-                    self.simulation.reset_current_params(params)
-
+                time, next_params = self._param_set[self.next_params_index]
+                next_stop = min(time, end_time)
+            else:
+                next_stop = end_time
+                next_params = None
+            
             yield from self.simulation.iter_run(
-                end_time=checkpoint_time,
+                end_time=next_stop,
                 sampling_interval=sampling_interval,
                 sampling_years=sampling_years,
             )
+
+            if next_params is not None:
+                self.simulation.reset_current_params(next_params)
+                self.next_params_index += 1
+
 
     def run(self, *, end_time: float) -> None:
         """Run simulation from current state till `end_time`
@@ -270,12 +274,16 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
             end_time (float): end time of the simulation.
         """
         while self.simulation.state.current_time < end_time:
-            checkpoint_time = end_time
+            # Invariant: current params are applied at this point
             if self.next_params_index < len(self._param_set):
-                # Has param sets left
-                time, params = self._param_set[self.next_params_index]
+                time, next_params = self._param_set[self.next_params_index]
+                next_stop = min(time, end_time)
+            else:
+                next_stop = end_time
+                next_params = None
+            
+            self.simulation.run(end_time=next_stop)
+
+            if next_params is not None:
+                self.simulation.reset_current_params(next_params)
                 self.next_params_index += 1
-                if time < end_time:
-                    checkpoint_time = time
-                    self.simulation.reset_current_params(params)
-            self.simulation.run(end_time=checkpoint_time)

@@ -15,6 +15,15 @@ EndgameModelGeneric = TypeVar(
 )
 
 
+def find_next_params_index(
+    param_set: list[tuple[float, CombinedParams]], time: float
+) -> int:
+    next_params_index = next(i for i, (time, _) in enumerate(param_set) if time > time)
+    if next_params_index < 1:
+        raise ValueError(f"Invalid next param index: {next_params_index}")
+    return next_params_index
+
+
 class ConvertEndgame(Protocol, Generic[EndgameModelGeneric, CombinedParams]):
     def __call__(
         self, endgame: EndgameModelGeneric
@@ -96,12 +105,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         if endgame:
             self._param_set = type(self).convert_endgame(endgame)
             assert start_time is not None and (len(self._param_set) > 0)
-            time_params = [t for t, _ in self._param_set]
-            self.next_params_index = next(
-                i for i, value in enumerate(time_params) if value > start_time
-            )
-            if self.next_params_index < 1:
-                raise ValueError(f"Invalid next param index: {self.next_params_index}")
+            self.next_params_index = find_next_params_index(self._param_set, start_time)
             simulation = type(self).simulation_class(
                 start_time=start_time,
                 params=self._param_set[self.next_params_index - 1][1],
@@ -143,14 +147,9 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
     def reset_endgame(self, endgame: EndgameModelGeneric):
         self._param_set = type(self).convert_endgame(endgame)
         assert len(self._param_set) > 0
-        time_params = [t for t, _ in self._param_set]
-        self.next_params_index = next(
-            i
-            for i, value in enumerate(time_params)
-            if value > self.simulation.state.current_time
+        self.next_params_index = find_next_params_index(
+            self._param_set, self.simulation.state.current_time
         )
-        if self.next_params_index < 1:
-            raise ValueError(f"Invalid next param index: {self.next_params_index}")
         self.simulation.reset_current_params(
             self._param_set[self.next_params_index - 1][1]
         )

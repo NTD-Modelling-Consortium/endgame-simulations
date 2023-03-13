@@ -1,4 +1,5 @@
 from typing import Optional
+
 from hdf5_dataclass import HDF5Dataclass
 
 from endgame_simulations.models import BaseInitialParams

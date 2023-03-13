@@ -213,7 +213,7 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
 
                 is_on_sampling_interval = (
                     sampling_interval is not None
-                    and (self.state.current_time) % sampling_interval < prev_delta_time
+                    and self.state.current_time % sampling_interval < prev_delta_time
                 )
 
                 is_on_sampling_year = (

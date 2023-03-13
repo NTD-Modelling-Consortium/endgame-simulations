@@ -1,3 +1,4 @@
+from typing import Optional
 from hdf5_dataclass import HDF5Dataclass
 
 from endgame_simulations.models import BaseInitialParams
@@ -12,6 +13,7 @@ class Params(BaseInitialParams):
 class State(HDF5Dataclass, BaseState[Params]):
     current_time: float
     params: Params
+    _previous_delta_time: Optional[float] = None
     state_int: int = 0
 
     @classmethod
@@ -40,3 +42,5 @@ class NewSim(
 
 sim = NewSim(start_time=1, params=Params(w_rate=0.2))
 sim.run(end_time=4)
+sim.reset_current_params(Params(delta_time=0.3))
+sim.run(end_time=8)

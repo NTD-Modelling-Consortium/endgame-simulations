@@ -206,9 +206,14 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
             disable=not self.verbose,
         ) as progress_bar:
             while self.state.current_time <= end_time:
+                if self.state._previous_delta_time is None:
+                    prev_delta_time = self._delta_time
+                else:
+                    prev_delta_time = self.state._previous_delta_time
+
                 is_on_sampling_interval = (
                     sampling_interval is not None
-                    and self.state.current_time % sampling_interval < self._delta_time
+                    and (self.state.current_time) % sampling_interval < prev_delta_time
                 )
 
                 is_on_sampling_year = (
@@ -217,9 +222,8 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
                     and abs(
                         self.state.current_time - sampling_years[sampling_years_idx]
                     )
-                    < self._delta_time
+                    < prev_delta_time
                 )
-
                 if is_on_sampling_interval or is_on_sampling_year:
                     yield self.state
                     if is_on_sampling_year:
@@ -227,6 +231,7 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
 
                 progress_bar.update(self._delta_time)
                 type(self).advance_state(self.state, self.debug)
+                self.state._previous_delta_time = self._delta_time
                 self.state.current_time += self._delta_time
 
     def run(self, *, end_time: float) -> None:
@@ -251,4 +256,5 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
                 while self.state.current_time <= end_time:
                     progress_bar.update(self._delta_time)
                     type(self).advance_state(self.state, self.debug)
+                    self.state._previous_delta_time = self._delta_time
                     self.state.current_time += self._delta_time

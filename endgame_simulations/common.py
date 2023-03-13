@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Generic, Protocol, TypeVar
+from typing import Generic, Optional, Protocol, TypeVar
 
 import h5py
 from hdf5_dataclass import FileType
@@ -11,6 +11,7 @@ StateParams = TypeVar("StateParams", bound=BaseInitialParams)
 
 class BaseState(Generic[StateParams], ABC):
     current_time: float
+    _previous_delta_time: Optional[float]
 
     @classmethod
     @abstractmethod

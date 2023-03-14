@@ -83,6 +83,9 @@ class ParameterChange(GenericModel, Generic[UpdateParams]):
     params: UpdateParams
 
 
+UpdateParams = TypeVar("UpdateParams", bound=_BaseUpdateParams)
+
+
 class Parameters(GenericModel, Generic[InitialParams, UpdateParams]):
     initial: InitialParams
     changes: list[ParameterChange[UpdateParams]]

@@ -259,17 +259,12 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
     ) -> Iterator[State]:
         while self.simulation.state.current_time < end_time:
             # Invariant: current params are applied at this point
+            inclusive_adjustment = self.simulation._delta_time if inclusive else 0.0
             if self.next_params_index < len(self._param_set):
                 time, next_params = self._param_set[self.next_params_index]
-                if inclusive:
-                    next_stop = min(time, end_time + self.simulation._delta_time)
-                else:
-                    next_stop = min(time, end_time)
+                next_stop = min(time, end_time + inclusive_adjustment)
             else:
-                if inclusive:
-                    next_stop = end_time + self.simulation._delta_time
-                else:
-                    next_stop = end_time
+                next_stop = end_time + inclusive_adjustment
                 next_params = None
 
             yield from self.simulation.iter_run(

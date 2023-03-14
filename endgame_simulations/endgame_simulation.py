@@ -198,7 +198,9 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         return cls(input=input)
 
     @overload
-    def iter_run(self, *, end_time: float, sampling_interval: float) -> Iterator[State]:
+    def iter_run(
+        self, *, end_time: float, sampling_interval: float, inclusive: bool = False
+    ) -> Iterator[State]:
         """Run the simulation until `end_time`. Generates stats every `sampling_interval`,
         until `end_time`.
 
@@ -212,6 +214,8 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         Args:
             end_time (float): end time
             sampling_interval (float): State sampling interval (years)
+            inclusive (bool, optional): If samples include the final end time. Defaults to False.
+                Note: technically this just adds delta time to end time
 
         Yields:
             Iterator[State]: Iterator of the simulation's state.
@@ -220,7 +224,7 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
 
     @overload
     def iter_run(
-        self, *, end_time: float, sampling_years: list[float]
+        self, *, end_time: float, sampling_years: list[float], inclusive: bool = False
     ) -> Iterator[State]:
         """Run the simulation until `end_time`. Generates stats for every year in `sampling_years`.
 
@@ -237,6 +241,8 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         Args:
             end_time (float): end time
             sampling_years (list[float]): list of years to sample State
+            inclusive (bool, optional): If samples include the final end time. Defaults to False.
+                Note: technically this just adds delta time to end time
 
         Yields:
             Iterator[State]: Iterator of the simulation's state.
@@ -249,14 +255,21 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         end_time: float,
         sampling_interval: float | None = None,
         sampling_years: list[float] | None = None,
+        inclusive: bool = False,
     ) -> Iterator[State]:
         while self.simulation.state.current_time < end_time:
             # Invariant: current params are applied at this point
             if self.next_params_index < len(self._param_set):
                 time, next_params = self._param_set[self.next_params_index]
-                next_stop = min(time, end_time)
+                if inclusive:
+                    next_stop = min(time, end_time + self.simulation._delta_time)
+                else:
+                    next_stop = min(time, end_time)
             else:
-                next_stop = end_time
+                if inclusive:
+                    next_stop = end_time + self.simulation._delta_time
+                else:
+                    next_stop = end_time
                 next_params = None
 
             yield from self.simulation.iter_run(

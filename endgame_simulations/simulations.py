@@ -124,7 +124,9 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         return cls(input=input)
 
     @overload
-    def iter_run(self, *, end_time: float, sampling_interval: float) -> Iterator[State]:
+    def iter_run(
+        self, *, end_time: float, sampling_interval: float, inclusive: bool = False
+    ) -> Iterator[State]:
         """Run the simulation until `end_time`. Generates stats every `sampling_interval`,
         until `end_time`.
 
@@ -138,6 +140,8 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         Args:
             end_time (float): end time
             sampling_interval (float): State sampling interval (years)
+            inclusive (bool, optional): If samples include the final end time. Defaults to False.
+                Note: technically this just adds delta time to end time
 
         Yields:
             Iterator[State]: Iterator of the simulation's state.
@@ -146,7 +150,7 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
 
     @overload
     def iter_run(
-        self, *, end_time: float, sampling_years: list[float]
+        self, *, end_time: float, sampling_years: list[float], inclusive: bool = False
     ) -> Iterator[State]:
         """Run the simulation until `end_time`. Generates stats for every year in `sampling_years`.
 
@@ -163,6 +167,8 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         Args:
             end_time (float): end time
             sampling_years (list[float]): list of years to sample State
+            inclusive (bool, optional): If samples include the final end time. Defaults to False.
+                Note: technically this just adds delta time to end time
 
         Yields:
             Iterator[State]: Iterator of the simulation's state.
@@ -176,6 +182,7 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         end_time: float,
         sampling_interval: float | None = None,
         sampling_years: list[float] | None = None,
+        inclusive: bool = False,
     ) -> Iterator[State]:
         ...
 
@@ -185,10 +192,15 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         end_time: float,
         sampling_interval: float | None = None,
         sampling_years: list[float] | None = None,
+        inclusive: bool = False,
     ) -> Iterator[State]:
-        if end_time < self.state.current_time:
+        if inclusive:
+            real_end_time = end_time + self._delta_time
+        else:
+            real_end_time = end_time
+        if real_end_time < self.state.current_time:
             raise ValueError(
-                f"End time {end_time} before start {self.state.current_time}"
+                f"End time {real_end_time} before start {self.state.current_time}"
             )
 
         if sampling_interval and sampling_years:
@@ -202,10 +214,10 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         sampling_years_idx = 0
 
         with tqdm.tqdm(
-            total=end_time - self.state.current_time + self._delta_time,
+            total=real_end_time - self.state.current_time + self._delta_time,
             disable=not self.verbose,
         ) as progress_bar:
-            while self.state.current_time <= end_time:
+            while self.state.current_time <= real_end_time:
                 if self.state._previous_delta_time is None:
                     prev_delta_time = self._delta_time
                 else:

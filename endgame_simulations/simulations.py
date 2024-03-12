@@ -5,6 +5,7 @@ from typing import ClassVar, Generic, Iterator, TypeVar, cast, overload
 import h5py
 import tqdm
 from hdf5_dataclass import FileType
+import numpy as np
 
 from endgame_simulations.models import BaseInitialParams
 
@@ -227,6 +228,9 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
         if sampling_years:
             sampling_years = sorted(sampling_years)
 
+        if sampling_interval is not None:
+            sampling_years = np.arange(self.state.current_time, real_end_time, sampling_interval)
+
         sampling_years_idx = 0
 
         with tqdm.tqdm(
@@ -234,24 +238,20 @@ class GenericSimulation(Generic[ParamsModel, State], ABC):
             disable=not self.verbose,
         ) as progress_bar:
             while self.state.current_time + self._delta_time <= real_end_time:
-                self.state.current_time += self._delta_time
-                is_on_sampling_interval = (
-                    sampling_interval is not None
-                    and self.state.current_time % sampling_interval < self._delta_time
-                )
-
                 is_on_sampling_year = (
-                    sampling_years
+                    sampling_years is not None
                     and sampling_years_idx < len(sampling_years)
-                    and abs(
-                        self.state.current_time - sampling_years[sampling_years_idx]
-                    )
-                    < self._delta_time
+                    and self.state.current_time - sampling_years[sampling_years_idx]
+                    >= 0
                 )
-                if is_on_sampling_interval or is_on_sampling_year:
+                if is_on_sampling_year:
                     yield self.state
-                    if is_on_sampling_year:
-                        sampling_years_idx += 1
+                    sampling_years_idx += 1
+
+                self.state.current_time += self._delta_time
+                # crude self-correction at the end of each year to account for floating-point precision issues
+                if round(self.state.current_time, 9) % 1 == 0:
+                    self.state.current_time = round(self.state.current_time, 9)
 
                 progress_bar.update(self._delta_time)
                 type(self).advance_state(self.state, self.debug)

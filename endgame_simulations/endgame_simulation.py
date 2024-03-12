@@ -293,7 +293,15 @@ class GenericEndgame(Generic[EndgameModelGeneric, Simulation, State, CombinedPar
         sampling_interval: float | None = None,
         sampling_years: list[float] | None = None,
         inclusive: bool = False,
+        make_time_backwards_compatible = False,
     ) -> Iterator[State]:
+        # if using an old version of the model, we need to set `make_time_backwards_compatible` to pro-actively fix issues with the delta_time prevision
+        if make_time_backwards_compatible:
+            delta_time_to_use  = self.simulation._delta_time
+            if self.simulation.state._previous_delta_time is not None:
+                delta_time_to_use = self.simulation.state._previous_delta_time
+            if self.simulation.state.current_time - round(self.simulation.state.current_time) < delta_time_to_use:
+                self.simulation.state.current_time = round(self.simulation.state.current_time)
         while self.simulation.state.current_time + self.simulation._delta_time < end_time:
             # Invariant: current params are applied at this point
             inclusive_adjustment = self.simulation._delta_time if inclusive else 0.0
